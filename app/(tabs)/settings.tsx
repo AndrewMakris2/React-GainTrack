@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../../utils/supabase';
 import { UserSettings, getSettings, saveSettings } from '../../utils/storage';
 
 function TargetField({
@@ -263,6 +265,16 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={async () => {
+              await supabase.auth.signOut();
+              router.replace('/(auth)' as any);
+            }}
+          >
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -411,5 +423,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  logoutBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

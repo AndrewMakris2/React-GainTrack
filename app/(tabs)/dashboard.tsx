@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Animated,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MacroRing from '../../components/MacroRing';
 import MealSection from '../../components/MealSection';
@@ -233,8 +236,8 @@ export default function DashboardScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB */}
-      {isToday && (
+      {/* FAB — hidden on web (use Scan tab or + Add buttons instead) */}
+      {isToday && !isWeb && (
         <View style={styles.fabContainer} pointerEvents="box-none">
           {/* Scan option */}
           <Animated.View

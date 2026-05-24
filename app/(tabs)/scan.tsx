@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,

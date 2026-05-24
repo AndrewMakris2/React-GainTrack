@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 export interface FoodItem {
   id: string;
@@ -29,33 +29,74 @@ export interface UserSettings {
   targets: MacroTargets;
 }
 
-const SETTINGS_KEY = 'gaintrack_settings';
-const DAY_LOG_PREFIX = 'gaintrack_day_';
+const DEFAULT_SETTINGS: UserSettings = {
+  name: 'Athlete',
+  targets: { calories: 2500, protein: 180, carbs: 250, fat: 80 },
+};
+
+const EMPTY_MEALS = (): Record<MealKey, FoodItem[]> => ({
+  breakfast: [],
+  lunch: [],
+  dinner: [],
+  snacks: [],
+});
+
+async function getUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<UserSettings> {
-  const raw = await AsyncStorage.getItem(SETTINGS_KEY);
-  if (raw) return JSON.parse(raw);
-  return {
-    name: 'Athlete',
-    targets: { calories: 2500, protein: 180, carbs: 250, fat: 80 },
-  };
+  try {
+    const userId = await getUserId();
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('name, targets')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) return DEFAULT_SETTINGS;
+    return { name: data.name, targets: data.targets };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export async function saveSettings(settings: UserSettings): Promise<void> {
-  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  const userId = await getUserId();
+  await supabase
+    .from('user_settings')
+    .upsert({ user_id: userId, name: settings.name, targets: settings.targets })
+    .eq('user_id', userId);
 }
 
+// ─── Day Logs ─────────────────────────────────────────────────────────────────
+
 export async function getDayLog(date: string): Promise<DayLog> {
-  const raw = await AsyncStorage.getItem(DAY_LOG_PREFIX + date);
-  if (raw) return JSON.parse(raw);
-  return {
-    date,
-    meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-  };
+  try {
+    const userId = await getUserId();
+    const { data, error } = await supabase
+      .from('day_logs')
+      .select('meals')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .single();
+
+    if (error || !data) return { date, meals: EMPTY_MEALS() };
+    return { date, meals: data.meals };
+  } catch {
+    return { date, meals: EMPTY_MEALS() };
+  }
 }
 
 export async function saveDayLog(log: DayLog): Promise<void> {
-  await AsyncStorage.setItem(DAY_LOG_PREFIX + log.date, JSON.stringify(log));
+  const userId = await getUserId();
+  await supabase
+    .from('day_logs')
+    .upsert({ user_id: userId, date: log.date, meals: log.meals });
 }
 
 export async function addFoodToMeal(
@@ -79,12 +120,19 @@ export async function removeFoodFromMeal(
 }
 
 export async function getAllDates(): Promise<string[]> {
-  const keys = await AsyncStorage.getAllKeys();
-  return keys
-    .filter((k) => k.startsWith(DAY_LOG_PREFIX))
-    .map((k) => k.replace(DAY_LOG_PREFIX, ''))
-    .sort()
-    .reverse();
+  try {
+    const userId = await getUserId();
+    const { data, error } = await supabase
+      .from('day_logs')
+      .select('date')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((r: { date: string }) => r.date);
+  } catch {
+    return [];
+  }
 }
 
 export function todayString(): string {
